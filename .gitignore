@@ -1,0 +1,7 @@
+.zip
+.parquet
+.db
+venv/
+data/
+.idea/
+__pycache__/

@@ -1,0 +1,4 @@
+model_name,mae,timestamp,model_type,baseline_improvement,full_model_comparison
+baseline,4.228524824664622,2025-05-11 21:54:59,baseline,,
+full,1.594560079970064,2025-05-11 21:54:59,full_feature,62.29039331472924,
+reduced,1.904889937690856,2025-05-11 21:54:59,reduced_feature,,-19.461785204519725

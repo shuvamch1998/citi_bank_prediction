@@ -1,0 +1,9 @@
+scikit-learn
+dotenv
+pandas
+pyarrow
+boto3
+sagemaker
+plotly
+mlflow
+lightgbm
