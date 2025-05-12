@@ -86,15 +86,15 @@ jobs:
           python src/pipelines/train_models_pipeline.py
       
       - name: Upload metrics as artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v2  # Downgrade to v2
         with:
           name: model-metrics
           path: |
             metrics/model_metrics.csv
             metrics/model_metrics_history.csv
-      
+
       - name: Upload forecast visualizations
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v2  # Downgrade to v2
         with:
           name: forecast-visualizations
           path: |
