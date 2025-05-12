@@ -85,30 +85,47 @@ jobs:
       
       - name: Update dynamic parameters
         run: |
-          # Only update parameters that can be changed in the workflow
-          if [ ! -z "${{ github.event.inputs.window_size }}" ]; then
-            # If WINDOW_SIZE already exists in .env, update it
-            if grep -q "WINDOW_SIZE=" .env; then
-              sed -i "s/WINDOW_SIZE=.*/WINDOW_SIZE=${{ github.event.inputs.window_size }}/" .env
-            else
-              # Otherwise, add it
-              echo "WINDOW_SIZE=${{ github.event.inputs.window_size }}" >> .env
-            fi
+          # Create a new .env file with just our parameters if it doesn't exist
+          if [ ! -f ".env" ]; then
+            touch .env
           fi
           
-          if [ ! -z "${{ github.event.inputs.forecast_months }}" ]; then
-            # If FORECAST_MONTHS already exists in .env, update it
-            if grep -q "FORECAST_MONTHS=" .env; then
-              sed -i "s/FORECAST_MONTHS=.*/FORECAST_MONTHS=${{ github.event.inputs.forecast_months }}/" .env
-            else
-              # Otherwise, add it
-              echo "FORECAST_MONTHS=${{ github.event.inputs.forecast_months }}" >> .env
-            fi
+          # Debug the current content
+          echo "Current .env content:"
+          cat .env
+          
+          # Ensure bucket name has proper format
+          if grep -q "AWS_S3_BUCKET=" .env; then
+            # Extract the bucket name and make sure it's correct
+            bucket_name=$(grep "AWS_S3_BUCKET=" .env | cut -d'=' -f2)
+            echo "Found bucket name: $bucket_name"
+            
+            # Backup the file
+            cp .env .env.bak
+            
+            # Remove any non-AWS lines that might be concatenated
+            grep -v "WINDOW_SIZE\|FORECAST_MONTHS" .env.bak > .env
           fi
           
-          # Show the updated parameters
-          echo "Dynamic parameters after update:"
-          grep -E 'WINDOW_SIZE=|FORECAST_MONTHS=' .env || echo "Parameters not found"
+          # Now add or update WINDOW_SIZE with a guaranteed newline
+          if grep -q "WINDOW_SIZE=" .env; then
+            sed -i "s/WINDOW_SIZE=.*/WINDOW_SIZE=${{ github.event.inputs.window_size }}/" .env
+          else
+            echo "" >> .env  # Ensure there's a newline
+            echo "WINDOW_SIZE=${{ github.event.inputs.window_size }}" >> .env
+          fi
+          
+          # Same for FORECAST_MONTHS
+          if grep -q "FORECAST_MONTHS=" .env; then
+            sed -i "s/FORECAST_MONTHS=.*/FORECAST_MONTHS=${{ github.event.inputs.forecast_months }}/" .env
+          else
+            echo "" >> .env  # Ensure there's a newline
+            echo "FORECAST_MONTHS=${{ github.event.inputs.forecast_months }}" >> .env
+          fi
+            
+            # Show the updated parameters
+            echo "Dynamic parameters after update:"
+            grep -E 'WINDOW_SIZE=|FORECAST_MONTHS=' .env || echo "Parameters not found"
       
       - name: Create output directories
         run: |
