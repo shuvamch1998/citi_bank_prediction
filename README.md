@@ -56,6 +56,7 @@ This project builds a full-stack MLOps pipeline to forecast hourly demand for Ci
   ![image](https://github.com/user-attachments/assets/02173ea4-68ec-4dfc-943a-019587e2e38b)
   ![image](https://github.com/user-attachments/assets/191c6609-b201-4fbe-9390-1f176b0ded5d)
   ![image](https://github.com/user-attachments/assets/6b67e9f2-b867-4037-b141-73b6966cbff6)
+  ![image](https://github.com/user-attachments/assets/b7c32c9b-4c66-4a86-85a0-d3a72b123ed9)
 
 
 
