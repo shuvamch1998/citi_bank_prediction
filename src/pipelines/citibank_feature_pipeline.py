@@ -3,6 +3,7 @@ import sys
 import os
 from datetime import datetime
 import pandas as pd
+import argparse
 
 import src.config.citibike_config as config
 from src.utils.aws_feature_store_util import AWSFeatureStore
@@ -176,16 +177,23 @@ def run_feature_pipeline(year_start=2024, month_start=1, year_end=2024, month_en
 
 
 if __name__ == "__main__":
-    # Define parameters directly in the code
-    year_start = 2024
-    month_start = 1
-    year_end = 2025
-    month_end = 1
-
+    import sys
+    import argparse
+    
+    # Create argument parser
+    parser = argparse.ArgumentParser(description="Run Citibike feature engineering pipeline")
+    parser.add_argument("--year-start", type=int, default=2024, help="Start year")
+    parser.add_argument("--month-start", type=int, default=1, help="Start month (1-12)")
+    parser.add_argument("--year-end", type=int, default=2024, help="End year")
+    parser.add_argument("--month-end", type=int, default=3, help="End month (1-12)")
+    
+    # Parse arguments
+    args = parser.parse_args()
+    
     # Run the pipeline with the specified parameters
     run_feature_pipeline(
-        year_start=year_start,
-        month_start=month_start,
-        year_end=year_end,
-        month_end=month_end
+        year_start=args.year_start,
+        month_start=args.month_start,
+        year_end=args.year_end,
+        month_end=args.month_end
     )
