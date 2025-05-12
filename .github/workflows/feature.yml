@@ -4,23 +4,6 @@ on:
     - cron: '0 1 * * 0'  # Every Sunday at 1:00 AM UTC
   
   workflow_dispatch:
-    inputs:
-      data_start_year:
-        description: 'Start year for data'
-        default: '2024'
-        required: true
-      data_start_month:
-        description: 'Start month for data (1-12)'
-        default: '1'
-        required: true
-      data_end_year:
-        description: 'End year for data'
-        default: '2025'
-        required: true
-      data_end_month:
-        description: 'End month for data (1-12)'
-        default: '1'
-        required: true
 
 jobs:
   feature_engineering:
@@ -98,13 +81,13 @@ jobs:
       - name: Run Feature Engineering Pipeline
         run: |
           python src/pipelines/feature_engineering_pipeline.py \
-            --year-start ${{ github.event.inputs.data_start_year || '2024' }} \
-            --month-start ${{ github.event.inputs.data_start_month || '1' }} \
-            --year-end ${{ github.event.inputs.data_end_year || '2025' }} \
-            --month-end ${{ github.event.inputs.data_end_month || '1' }}
+            --year-start 2024 \
+            --month-start 1 \
+            --year-end 2024 \
+            --month-end 3
       
       - name: Save feature files artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v2  # Changed from v3 to v2
         if: always()
         with:
           name: feature-files
