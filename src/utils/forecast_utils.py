@@ -1,9 +1,9 @@
 import pandas as pd
 import numpy as np
-from datetime import datetime, timedelta
+from datetime import datetime
 import logging
 import os
-import boto3
+from sklearn.preprocessing import LabelEncoder
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -211,12 +211,6 @@ def generate_feb_may_2025_forecast(model, historical_data, window_size=24):
     Returns:
         pd.DataFrame: DataFrame with predicted rides for Feb-May 2025
     """
-    import pandas as pd
-    import numpy as np
-    from datetime import datetime
-    import logging
-    import os
-    from sklearn.preprocessing import LabelEncoder
 
     # Configure logging
     logger = logging.getLogger(__name__)
