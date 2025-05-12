@@ -61,7 +61,7 @@ jobs:
         run: |
           # AWS Configuration
           echo "AWS_DEFAULT_REGION=${{ secrets.AWS_REGION || 'us-east-1' }}" >> $GITHUB_ENV
-          echo "AWS_S3_BUCKET=${{ secrets.AWS_S3_BUCKET }}" >> $GITHUB_ENV
+          echo "TARGET_S3_BUCKET=${{ secrets.TARGET_S3_BUCKET }}" >> $GITHUB_ENV
           
           # MLflow Configuration
           echo "MLFLOW_TRACKING_URI=${{ secrets.MLFLOW_TRACKING_URI }}" >> $GITHUB_ENV
