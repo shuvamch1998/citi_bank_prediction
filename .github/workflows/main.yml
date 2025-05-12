@@ -34,13 +34,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
       
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID || '' }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY || '' }}
-          aws-region: ${{ secrets.AWS_DEFAULT_REGION || 'us-east-1' }}
-      
       - name: Check for .env file
         run: |
           if [ -f ".env" ]; then
@@ -50,6 +43,41 @@ jobs:
             grep -o '^[^=]*' .env
           else
             echo "WARNING: .env file not found in repository"
+          fi
+      
+      - name: Set up AWS credentials from .env
+        run: |
+          # Extract AWS credentials from .env file
+          if [ -f ".env" ]; then
+            # Source AWS credentials from .env file
+            echo "Setting up AWS credentials from .env file"
+            
+            # Create AWS config directory
+            mkdir -p ~/.aws
+            
+            # Extract credentials from .env and create AWS config files
+            AWS_ACCESS_KEY_ID=$(grep AWS_ACCESS_KEY_ID .env | cut -d '=' -f2)
+            AWS_SECRET_ACCESS_KEY=$(grep AWS_SECRET_ACCESS_KEY .env | cut -d '=' -f2)
+            AWS_DEFAULT_REGION=$(grep AWS_DEFAULT_REGION .env | cut -d '=' -f2 || echo "us-east-1")
+            
+            # Create credentials file
+            cat > ~/.aws/credentials << EOF
+            [default]
+            aws_access_key_id = $AWS_ACCESS_KEY_ID
+            aws_secret_access_key = $AWS_SECRET_ACCESS_KEY
+            EOF
+            
+            # Create config file
+            cat > ~/.aws/config << EOF
+            [default]
+            region = $AWS_DEFAULT_REGION
+            EOF
+            
+            # Test AWS configuration (listing S3 buckets without showing output)
+            echo "Testing AWS configuration"
+            aws s3 ls >/dev/null 2>&1 && echo "AWS credentials are working" || echo "Failed to connect to AWS"
+          else
+            echo "No .env file found, skipping AWS credential setup"
           fi
       
       - name: Update dynamic parameters
