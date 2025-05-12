@@ -1,0 +1,102 @@
+name: Citibike Demand Forecasting Pipeline
+
+on:
+  # Schedule the workflow to run weekly on Sunday at 1:00 AM UTC
+  schedule:
+    - cron: '0 1 * * 0'
+  
+  # Allow manual triggering from GitHub UI
+  workflow_dispatch:
+    inputs:
+      forecast_months:
+        description: 'Number of months to forecast'
+        default: '4'
+        required: true
+      window_size:
+        description: 'Window size for time series features'
+        default: '672'
+        required: true
+
+jobs:
+  train_and_forecast:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID || '' }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY || '' }}
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION || 'us-east-1' }}
+      
+      - name: Check for .env file
+        run: |
+          if [ -f ".env" ]; then
+            echo ".env file exists and will be used"
+            # Print keys in .env without values for verification
+            echo "Keys found in .env file:"
+            grep -o '^[^=]*' .env
+          else
+            echo "WARNING: .env file not found in repository"
+          fi
+      
+      - name: Update dynamic parameters
+        run: |
+          # Only update parameters that can be changed in the workflow
+          if [ ! -z "${{ github.event.inputs.window_size }}" ]; then
+            # If WINDOW_SIZE already exists in .env, update it
+            if grep -q "WINDOW_SIZE=" .env; then
+              sed -i "s/WINDOW_SIZE=.*/WINDOW_SIZE=${{ github.event.inputs.window_size }}/" .env
+            else
+              # Otherwise, add it
+              echo "WINDOW_SIZE=${{ github.event.inputs.window_size }}" >> .env
+            fi
+          fi
+          
+          if [ ! -z "${{ github.event.inputs.forecast_months }}" ]; then
+            # If FORECAST_MONTHS already exists in .env, update it
+            if grep -q "FORECAST_MONTHS=" .env; then
+              sed -i "s/FORECAST_MONTHS=.*/FORECAST_MONTHS=${{ github.event.inputs.forecast_months }}/" .env
+            else
+              # Otherwise, add it
+              echo "FORECAST_MONTHS=${{ github.event.inputs.forecast_months }}" >> .env
+            fi
+          fi
+          
+          # Show the updated parameters
+          echo "Dynamic parameters after update:"
+          grep -E 'WINDOW_SIZE=|FORECAST_MONTHS=' .env || echo "Parameters not found"
+      
+      - name: Run training pipeline
+        run: |
+          python src/pipelines/train_models_pipeline.py
+      
+      - name: Upload metrics as artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: model-metrics
+          path: |
+            metrics/model_metrics.csv
+            metrics/model_metrics_history.csv
+      
+      - name: Upload forecast visualizations
+        uses: actions/upload-artifact@v3
+        with:
+          name: forecast-visualizations
+          path: |
+            *.html
+            feb_may_2025_forecast.csv
