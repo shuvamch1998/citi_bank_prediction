@@ -1,48 +1,29 @@
 name: Citibike Feature Engineering Pipeline
 on:
-  # Schedule the workflow to run weekly on Sunday at 1:00 AM UTC
   schedule:
-    - cron: '0 1 * * 3'
+    - cron: '0 1 * * 0'  # Every Sunday at 1:00 AM UTC
   
-  # Allow manual triggering from GitHub UI
   workflow_dispatch:
     inputs:
-      # Feature engineering parameters
       data_start_year:
         description: 'Start year for data'
         default: '2024'
         required: true
-        type: string
       data_start_month:
         description: 'Start month for data (1-12)'
         default: '1'
         required: true
-        type: string
       data_end_year:
         description: 'End year for data'
-        default: '2024'
+        default: '2025'
         required: true
-        type: string
       data_end_month:
         description: 'End month for data (1-12)'
-        default: '3'
+        default: '1'
         required: true
-        type: string
-      
-      # Model training parameters
-      forecast_months:
-        description: 'Number of months to forecast'
-        default: '4'
-        required: true
-        type: string
-      window_size:
-        description: 'Window size for time series features'
-        default: '672'
-        required: true
-        type: string
 
 jobs:
-  citibike_pipeline:
+  feature_engineering:
     runs-on: ubuntu-latest
     
     steps:
@@ -57,25 +38,17 @@ jobs:
       
       - name: Install dependencies
         run: |
-           python -m pip install --upgrade pip
-           pip install -r requirements.txt
-           pip install awscli  # Ensure AWS CLI is installed
+          python -m pip install --upgrade pip
+          pip install pandas numpy boto3 awscli pyarrow sagemaker python-dotenv
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          fi
       
       - name: Create directory structure
         run: |
-          # Create necessary directories
-          mkdir -p data/raw
-          mkdir -p data/processed
-          mkdir -p data/transformed
-          mkdir -p metrics
-          mkdir -p models
-          mkdir -p visualizations
-          
-          # Ensure src is a proper package
-          touch src/__init__.py
-          touch src/utils/__init__.py
-          touch src/pipelines/__init__.py
-          touch src/config/__init__.py
+          mkdir -p data/{raw,processed,transformed}
+          mkdir -p src/{utils,pipelines,config}
+          touch src/{__init__.py,utils/__init__.py,pipelines/__init__.py,config/__init__.py}
       
       - name: Set up AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -86,57 +59,49 @@ jobs:
       
       - name: Set environment variables
         run: |
-          # Set environment variables for both pipelines
           echo "AWS_DEFAULT_REGION=${{ secrets.AWS_REGION || 'us-east-1' }}" >> $GITHUB_ENV
-          echo "AWS_S3_BUCKET=${{ secrets.AWS_S3_BUCKET }}" >> $GITHUB_ENV
-          echo "WINDOW_SIZE=${{ github.event.inputs.window_size || '672' }}" >> $GITHUB_ENV
-          echo "FORECAST_MONTHS=${{ github.event.inputs.forecast_months || '4' }}" >> $GITHUB_ENV
+          echo "SAGEMAKER_ROLE_ARN=${{ secrets.SAGEMAKER_ROLE_ARN }}" >> $GITHUB_ENV
+          echo "FEATURE_STORE_BUCKET=${{ secrets.FEATURE_STORE_BUCKET }}" >> $GITHUB_ENV
           echo "PYTHONPATH=$PYTHONPATH:$(pwd)" >> $GITHUB_ENV
+      
+      - name: Update feature_engineering_pipeline.py
+        run: |
+          cat > tmp_main.py << 'EOF'
+          if __name__ == "__main__":
+              import sys
+              import argparse
+              
+              # Create argument parser
+              parser = argparse.ArgumentParser(description="Run Citibike feature engineering pipeline")
+              parser.add_argument("--year-start", type=int, default=2024, help="Start year")
+              parser.add_argument("--month-start", type=int, default=1, help="Start month (1-12)")
+              parser.add_argument("--year-end", type=int, default=2025, help="End year")
+              parser.add_argument("--month-end", type=int, default=1, help="End month (1-12)")
+              
+              # Parse arguments
+              args = parser.parse_args()
+              
+              # Run the pipeline with the specified parameters
+              run_feature_pipeline(
+                  year_start=args.year_start,
+                  month_start=args.month_start,
+                  year_end=args.year_end,
+                  month_end=args.month_end
+              )
+          EOF
           
-          # Optional MLflow tracking settings
-          echo "MLFLOW_TRACKING_URI=${{ secrets.MLFLOW_TRACKING_URI }}" >> $GITHUB_ENV
-          echo "DAGSHUB_USERNAME=${{ secrets.DAGSHUB_USERNAME }}" >> $GITHUB_ENV
-          echo "DAGSHUB_TOKEN=${{ secrets.DAGSHUB_TOKEN }}" >> $GITHUB_ENV
-          echo "DAGSHUB_REPO_NAME=${{ secrets.DAGSHUB_REPO_NAME }}" >> $GITHUB_ENV
-          
-          # Print environment for debugging (excluding secrets)
-          echo "Environment variables set:"
-          echo "PYTHONPATH: $PYTHONPATH:$(pwd)"
-          echo "AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION || 'us-east-1' }}"
-          echo "WINDOW_SIZE: ${{ github.event.inputs.window_size || '672' }}"
-          echo "FORECAST_MONTHS: ${{ github.event.inputs.forecast_months || '4' }}"
+          # Replace the main function more simply
+          sed -i '/if __name__ == "__main__":/,/run_feature_pipeline(/c\\' src/pipelines/feature_engineering_pipeline.py
+          cat tmp_main.py >> src/pipelines/feature_engineering_pipeline.py
+          rm tmp_main.py
       
       - name: Run Feature Engineering Pipeline
         run: |
-          # Log start of feature engineering
-          echo "Starting feature engineering pipeline..."
-          
-          # Run the feature pipeline with parameters from workflow inputs
           python src/pipelines/feature_engineering_pipeline.py \
             --year-start ${{ github.event.inputs.data_start_year || '2024' }} \
             --month-start ${{ github.event.inputs.data_start_month || '1' }} \
-            --year-end ${{ github.event.inputs.data_end_year || '2024' }} \
-            --month-end ${{ github.event.inputs.data_end_month || '3' }}
-          
-          # Verify feature files were created
-          echo "Feature files created:"
-          ls -la data/transformed/
-      
-      - name: Run Model Training Pipeline
-        run: |
-          # Log start of model training
-          echo "Starting model training pipeline..."
-          
-          # Run the training pipeline using the features generated above
-          python src/pipelines/train_models_pipeline.py
-          
-          # Verify model artifacts were created
-          echo "Model artifacts created:"
-          ls -la models/
-          echo "Metrics files created:"
-          ls -la metrics/
-          echo "HTML files created:"
-          ls -la *.html || echo "No HTML files found"
+            --year-end ${{ github.event.inputs.data_end_year || '2025' }} \
+            --month-end ${{ github.event.inputs.data_end_month || '1' }}
       
       - name: Save feature files artifacts
         uses: actions/upload-artifact@v3
@@ -145,22 +110,3 @@ jobs:
           name: feature-files
           path: data/transformed/*.parquet
           retention-days: 7
-      
-      - name: Save model artifacts
-        uses: actions/upload-artifact@v3
-        if: always()
-        with:
-          name: model-artifacts
-          path: |
-            models/*.pkl
-            metrics/*.csv
-            *.html
-            feb_may_2025_forecast.csv
-          retention-days: 7
-
-      - name: Cleanup temporary files
-        if: always()
-        run: |
-          # Remove large temporary files to free up space
-          rm -rf data/raw/*.csv || true
-          rm -rf data/processed/*.parquet || true
