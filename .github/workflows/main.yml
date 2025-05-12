@@ -1,5 +1,4 @@
 name: Citibike Demand Forecasting Pipeline
-
 on:
   # Schedule the workflow to run weekly on Sunday at 1:00 AM UTC
   schedule:
@@ -16,7 +15,6 @@ on:
         description: 'Window size for time series features'
         default: '672'
         required: true
-
 jobs:
   train_and_forecast:
     runs-on: ubuntu-latest
@@ -85,18 +83,32 @@ jobs:
         run: |
           python src/pipelines/train_models_pipeline.py
       
-      - name: Upload metrics as artifacts
-        uses: actions/upload-artifact@v2  # Downgrade to v2
-        with:
-          name: model-metrics
-          path: |
-            metrics/model_metrics.csv
-            metrics/model_metrics_history.csv
+      # Store artifacts the alternative way
+      - name: Save artifacts
+        if: always()
+        run: |
+          # Create an artifact directory
+          mkdir -p artifacts
+          
+          # Copy metrics files if they exist
+          if [ -d "metrics" ]; then
+            mkdir -p artifacts/metrics
+            cp -r metrics/* artifacts/metrics/ || echo "No metrics files found"
+          fi
+          
+          # Copy HTML files
+          cp *.html artifacts/ || echo "No HTML files found"
+          
+          # Copy forecast CSV
+          cp feb_may_2025_forecast.csv artifacts/ || echo "No forecast CSV found"
+          
+          # List what we're going to upload
+          echo "Files prepared for upload:"
+          find artifacts -type f | sort
 
-      - name: Upload forecast visualizations
-        uses: actions/upload-artifact@v2  # Downgrade to v2
+      # Use a direct reference to the action
+      - name: Upload all artifacts
+        uses: actions/upload-artifact@c7d193f32edcb7bfad88892161225aeda64e9392
         with:
-          name: forecast-visualizations
-          path: |
-            *.html
-            feb_may_2025_forecast.csv
+          name: forecast-artifacts
+          path: artifacts
