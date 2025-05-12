@@ -79,7 +79,7 @@ jobs:
       - name: Run inference pipeline
         run: |
           echo "Starting Citibank demand inference pipeline..."
-          python src/pipelines/citibank_inference_pipeline.py
+          python src/pipelines/citibike_inference_pipeline.py
         env:
           # Pass specific env vars to the process
           FORECAST_DAYS: ${{ github.event.inputs.forecast_days || '90' }}
