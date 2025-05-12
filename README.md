@@ -1,6 +1,6 @@
 # CitiBike Hourly Demand Forecasting System 🚲📈
 
-This project builds a full-stack MLOps pipeline to forecast hourly demand for CitiBike rides across New York City stations. It integrates data engineering, machine learning, model tracking, versioned forecasts, and interactive dashboards.
+This project builds a full-stack MLOps pipeline to forecast hourly demand for CitiBike rides from [Citi Bike System Data](https://citibikenyc.com/system-data) across New York City stations. It integrates data engineering, machine learning, model tracking, versioned forecasts, and interactive dashboards.
 
 ---
 
@@ -55,6 +55,8 @@ This project builds a full-stack MLOps pipeline to forecast hourly demand for Ci
   
   ![image](https://github.com/user-attachments/assets/02173ea4-68ec-4dfc-943a-019587e2e38b)
   ![image](https://github.com/user-attachments/assets/191c6609-b201-4fbe-9390-1f176b0ded5d)
+  ![image](https://github.com/user-attachments/assets/6b67e9f2-b867-4037-b141-73b6966cbff6)
+
 
 
 
