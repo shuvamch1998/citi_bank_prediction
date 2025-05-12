@@ -194,3 +194,96 @@ def load_production_model(model_name):
         except Exception as inner_e:
             logger.error(f"Error loading latest version: {inner_e}")
             return None
+
+def get_latest_full_model_from_mlflow(model_name="citibike-full-model"):
+    """
+    Get the latest version of the full feature model from MLflow registry.
+
+    Args:
+        model_name: Name of the model in the MLflow registry
+
+    Returns:
+        The loaded model
+    """
+    # Set up MLflow tracking
+    mlflow = set_mlflow_tracking()
+    client = MlflowClient()
+
+    try:
+        logger.info(f"Searching for model: {model_name}")
+
+        # First try to get all models with this name (without filtering by stage)
+        all_versions = []
+        try:
+            # Simple filter just by name
+            all_versions = client.search_model_versions(f"name='{model_name}'")
+        except Exception as e:
+            logger.warning(f"Error when searching by name: {str(e)}")
+            # Try alternative approach - get all registered models
+            registered_models = client.search_registered_models()
+            for rm in registered_models:
+                if rm.name == model_name:
+                    # Get all versions for this model
+                    all_versions = client.get_latest_versions(model_name)
+                    break
+
+        if not all_versions:
+            # If we still can't find versions, try one more approach
+            try:
+                # Try to list versions directly
+                all_versions = client.get_latest_versions(model_name)
+            except Exception as inner_e:
+                logger.error(f"Failed to get versions via get_latest_versions: {str(inner_e)}")
+                raise ValueError(f"No versions found for model: {model_name}")
+
+        # Find the production model if available
+        production_version = None
+        latest_version = None
+
+        for version in all_versions:
+            # Check if this is a production version
+            if hasattr(version, 'current_stage') and version.current_stage == 'Production':
+                production_version = version.version
+                logger.info(f"Found production model: {model_name} version {production_version}")
+                break
+
+            # Track the latest version by number
+            if latest_version is None or (hasattr(version, 'version') and int(version.version) > int(latest_version)):
+                latest_version = version.version
+
+        # Use production version if found, otherwise use latest
+        model_version = production_version if production_version else latest_version
+
+        if not model_version:
+            raise ValueError(f"Could not determine the version for model: {model_name}")
+
+        logger.info(f"Using model version: {model_name} version {model_version}")
+
+        # Load the model
+        model_uri = f"models:/{model_name}/{model_version}"
+        logger.info(f"Loading model from: {model_uri}")
+        model = mlflow.pyfunc.load_model(model_uri)
+
+        return model
+
+    except Exception as e:
+        logger.error(f"Error loading model from MLflow: {str(e)}")
+
+        # Fallback: try to find model from local path if available
+        try:
+            logger.info("Attempting to load model from local models directory...")
+            import joblib
+            from pathlib import Path
+
+            # Try to find a model file in the models directory
+            models_dir = Path("models")
+            if models_dir.exists():
+                model_files = list(models_dir.glob("*.pkl"))
+                if model_files:
+                    logger.info(f"Found local model: {model_files[0]}")
+                    return joblib.load(model_files[0])
+        except Exception as local_e:
+            logger.error(f"Failed to load local model: {str(local_e)}")
+
+        # If all else fails, raise the original error
+        raise
