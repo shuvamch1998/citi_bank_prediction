@@ -35,6 +35,24 @@ jobs:
           pip install -r requirements.txt
           pip install boto3 awscli  # Ensure AWS CLI is installed
       
+      - name: Check repository structure
+        run: |
+          echo "Current directory: $(pwd)"
+          echo "Directory contents:"
+          ls -la
+          echo "src directory contents:"
+          ls -la src || echo "src directory not found"
+          echo "src/pipelines directory contents:"
+          ls -la src/pipelines || echo "src/pipelines directory not found"
+      
+      - name: Create __init__.py files
+        run: |
+          # Ensure src is a proper package by creating __init__.py files
+          touch src/__init__.py
+          touch src/utils/__init__.py
+          touch src/pipelines/__init__.py
+          echo "Created __init__.py files to make src a proper package"
+      
       - name: Check for .env file
         run: |
           if [ -f ".env" ]; then
@@ -113,12 +131,14 @@ jobs:
       
       - name: Run training pipeline
         run: |
-          # Debug info
-          echo "Current directory: $(pwd)"
-          echo "Files in current directory:"
-          ls -la
+          # Add the project root to PYTHONPATH
+          export PYTHONPATH=$PYTHONPATH:$(pwd)
           
-          # Run the pipeline
+          # Debug info
+          echo "PYTHONPATH: $PYTHONPATH"
+          echo "Current directory: $(pwd)"
+          
+          # Run the pipeline from the project root
           python src/pipelines/train_models_pipeline.py
       
       # Store artifacts the alternative way
@@ -131,7 +151,7 @@ jobs:
           # Copy metrics files if they exist
           if [ -d "metrics" ]; then
             mkdir -p artifacts/metrics
-            cp -r metrics/* artifacts/metrics/ || echo "No metrics files found"
+            cp -r metrics/* artifacts/metrics/ 2>/dev/null || echo "No metrics files found"
           fi
           
           # Copy HTML files
