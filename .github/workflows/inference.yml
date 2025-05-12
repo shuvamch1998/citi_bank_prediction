@@ -1,0 +1,94 @@
+name: Citibank Demand Inference Pipeline
+on:
+  # Run weekly on Monday at 3:00 AM UTC
+  schedule:
+    - cron: '0 3 * * 1'
+  
+  # Allow manual triggering with customizable parameters
+  workflow_dispatch:
+    inputs:
+      forecast_days:
+        description: 'Number of days to forecast'
+        default: '90'
+        required: true
+        type: number
+      window_size:
+        description: 'Window size for time series features'
+        default: '672'
+        required: false
+        type: number
+
+jobs:
+  run_inference:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          
+          # Install main dependencies
+          pip install awscli
+          
+          # Install additional requirements if available
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          fi
+      
+      - name: Create necessary directories
+        run: |
+          mkdir -p data/{raw,processed,transformed}
+          mkdir -p models
+          mkdir -p logs
+      
+      - name: Set up AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION || 'us-east-1' }}
+      
+      - name: Set environment variables
+        run: |
+          # AWS Configuration
+          echo "AWS_DEFAULT_REGION=${{ secrets.AWS_REGION || 'us-east-1' }}" >> $GITHUB_ENV
+          echo "AWS_S3_BUCKET=${{ secrets.AWS_S3_BUCKET }}" >> $GITHUB_ENV
+          
+          # MLflow Configuration
+          echo "MLFLOW_TRACKING_URI=${{ secrets.MLFLOW_TRACKING_URI }}" >> $GITHUB_ENV
+          echo "DAGSHUB_USERNAME=${{ secrets.DAGSHUB_USERNAME }}" >> $GITHUB_ENV
+          echo "DAGSHUB_TOKEN=${{ secrets.DAGSHUB_TOKEN }}" >> $GITHUB_ENV
+          echo "DAGSHUB_REPO_NAME=${{ secrets.DAGSHUB_REPO_NAME }}" >> $GITHUB_ENV
+          
+          # Pipeline Configuration
+          echo "WINDOW_SIZE=${{ github.event.inputs.window_size || '672' }}" >> $GITHUB_ENV
+          echo "FORECAST_DAYS=${{ github.event.inputs.forecast_days || '90' }}" >> $GITHUB_ENV
+          
+          # Python Path
+          echo "PYTHONPATH=$PYTHONPATH:$(pwd)" >> $GITHUB_ENV
+      
+      - name: Run inference pipeline
+        run: |
+          echo "Starting Citibank demand inference pipeline..."
+          python src/pipelines/citibank_inference_pipeline.py
+        env:
+          # Pass specific env vars to the process
+          FORECAST_DAYS: ${{ github.event.inputs.forecast_days || '90' }}
+          WINDOW_SIZE: ${{ github.event.inputs.window_size || '672' }}
+      
+      - name: Upload logs
+        if: always()  # Run even if previous steps failed
+        uses: actions/upload-artifact@v3
+        with:
+          name: inference-logs
+          path: logs/
+          retention-days: 7
