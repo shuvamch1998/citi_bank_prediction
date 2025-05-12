@@ -85,10 +85,15 @@ jobs:
           FORECAST_DAYS: ${{ github.event.inputs.forecast_days || '90' }}
           WINDOW_SIZE: ${{ github.event.inputs.window_size || '672' }}
       
-      - name: Upload logs
-        if: always()  # Run even if previous steps failed
-        uses: actions/upload-artifact@v3
-        with:
-          name: inference-logs
-          path: logs/
-          retention-days: 7
+      # Instead of using upload-artifact, use a simpler approach
+      - name: Save logs to S3
+        if: always()
+        run: |
+          if [ -d "logs" ] && [ -n "$TARGET_S3_BUCKET" ]; then
+            echo "Uploading logs to S3..."
+            timestamp=$(date +%Y%m%d_%H%M%S)
+            aws s3 cp logs/ s3://${{ secrets.TARGET_S3_BUCKET }}/inference-logs/$timestamp/ --recursive
+            echo "Logs uploaded to s3://${{ secrets.TARGET_S3_BUCKET }}/inference-logs/$timestamp/"
+          else
+            echo "No logs to upload or TARGET_S3_BUCKET not set"
+          fi
