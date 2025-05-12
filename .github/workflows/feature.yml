@@ -2,7 +2,6 @@ name: Citibike Feature Engineering Pipeline
 on:
   schedule:
     - cron: '0 1 * * 3'  # Every Wednesday at 1:00 AM UTC
-  
   workflow_dispatch:
 
 jobs:
@@ -22,32 +21,14 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pandas numpy boto3 awscli pyarrow sagemaker python-dotenv
+          pip install awscli
           if [ -f requirements.txt ]; then
             pip install -r requirements.txt
           fi
       
-      - name: Check repository structure
+      - name: Create directories
         run: |
-          echo "Current directory: $(pwd)"
-          echo "Directory contents:"
-          ls -la
-          echo "src directory contents:"
-          ls -la src || echo "src directory not found"
-          echo "Pipelines directory:"
-          ls -la src/pipelines || echo "src/pipelines directory not found"
-      
-      - name: Create directory structure
-        run: |
-          # Create necessary directories
           mkdir -p data/{raw,processed,transformed}
-          mkdir -p src/{utils,pipelines,config}
-          
-          # Create __init__.py files if they don't exist
-          touch src/__init__.py
-          touch src/utils/__init__.py
-          touch src/pipelines/__init__.py
-          touch src/config/__init__.py
       
       - name: Set up AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -63,79 +44,29 @@ jobs:
           echo "FEATURE_STORE_BUCKET=${{ secrets.FEATURE_STORE_BUCKET }}" >> $GITHUB_ENV
           echo "PYTHONPATH=$PYTHONPATH:$(pwd)" >> $GITHUB_ENV
       
-      - name: Update citibank_feature_pipeline.py with argparse
-        run: |
-          # Update the main function to accept command line arguments
-          cat > tmp_main.py << 'EOF'
-if __name__ == "__main__":
-    import sys
-    import argparse
-    
-    # Create argument parser
-    parser = argparse.ArgumentParser(description="Run Citibike feature engineering pipeline")
-    parser.add_argument("--year-start", type=int, default=2024, help="Start year")
-    parser.add_argument("--month-start", type=int, default=1, help="Start month (1-12)")
-    parser.add_argument("--year-end", type=int, default=2025, help="End year")
-    parser.add_argument("--month-end", type=int, default=1, help="End month (1-12)")
-    
-    # Parse arguments
-    args = parser.parse_args()
-    
-    # Run the pipeline with the specified parameters
-    run_feature_pipeline(
-        year_start=args.year_start,
-        month_start=args.month_start,
-        year_end=args.year_end,
-        month_end=args.month_end
-    )
-EOF
-          
-          # Replace the main function more simply - use the correct filename
-          sed -i '/if __name__ == "__main__":/,/run_feature_pipeline(/c\\' src/pipelines/citibank_feature_pipeline.py
-          cat tmp_main.py >> src/pipelines/citibank_feature_pipeline.py
-          rm tmp_main.py
-      
       - name: Run Feature Engineering Pipeline
         run: |
-          # Add the project root to PYTHONPATH
           export PYTHONPATH=$PYTHONPATH:$(pwd)
-          
           echo "Running feature engineering pipeline..."
           python src/pipelines/citibank_feature_pipeline.py \
             --year-start 2024 \
             --month-start 1 \
             --year-end 2025 \
             --month-end 1
-          
-          # Check if feature files were created
-          echo "Files in data/transformed:"
-          ls -la data/transformed/ || echo "No files found"
       
       - name: Save feature files
         if: always()
         run: |
-          # Create the artifacts directory
           mkdir -p artifacts
           
-          # Check if there are any parquet files and copy them
           if ls data/transformed/*.parquet 1> /dev/null 2>&1; then
-            echo "Copying parquet files to artifacts directory"
-            cp data/transformed/*.parquet artifacts/ || echo "Copy failed"
-            
-            # List the contents of the artifacts directory
-            echo "Artifacts to be saved:"
+            cp data/transformed/*.parquet artifacts/
+            echo "Feature files copied to artifacts directory:"
             ls -la artifacts/
-            
-            # Create a zip file with the artifacts
-            cd artifacts
-            zip -r ../feature-files.zip ./* || echo "Zip creation failed"
-            cd ..
           else
-            echo "No parquet files found to save"
-            # Create a placeholder file
             echo "No feature files were generated in this run" > artifacts/README.txt
-            zip -r feature-files.zip artifacts/ || echo "Zip creation failed"
+            echo "No parquet files found"
           fi
           
-          echo "Zip file contents:"
-          unzip -l feature-files.zip || echo "Failed to list zip contents"
+          # Create a zip file of the artifacts
+          zip -r feature-files.zip artifacts/
