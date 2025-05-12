@@ -65,35 +65,23 @@ jobs:
             exit 1  # Fail if .env is missing
           fi
       
-      - name: Set up AWS credentials from .env
+      - name: Set up AWS credentials
         run: |
-          # Extract AWS credentials from .env file
-          if [ -f ".env" ]; then
-            echo "Setting up AWS credentials from .env file"
-            
-            # Create AWS config directory
-            mkdir -p ~/.aws
-            
-            # Extract credentials from .env
-            AWS_ACCESS_KEY_ID=$(grep AWS_ACCESS_KEY_ID .env | cut -d '=' -f2)
-            AWS_SECRET_ACCESS_KEY=$(grep AWS_SECRET_ACCESS_KEY .env | cut -d '=' -f2)
-            AWS_DEFAULT_REGION=$(grep AWS_DEFAULT_REGION .env | cut -d '=' -f2 || echo "us-east-1")
-            
-            # Write to credentials file without using here-document
-            echo "[default]" > ~/.aws/credentials
-            echo "aws_access_key_id = $AWS_ACCESS_KEY_ID" >> ~/.aws/credentials
-            echo "aws_secret_access_key = $AWS_SECRET_ACCESS_KEY" >> ~/.aws/credentials
-            
-            # Write to config file without using here-document
-            echo "[default]" > ~/.aws/config
-            echo "region = $AWS_DEFAULT_REGION" >> ~/.aws/config
-            
-            # Test AWS configuration
-            echo "Testing AWS configuration"
-            aws s3 ls >/dev/null 2>&1 && echo "AWS credentials are working" || echo "Failed to connect to AWS"
-          else
-            echo "No .env file found, skipping AWS credential setup"
-          fi
+          # Create AWS config directory
+          mkdir -p ~/.aws
+          
+          # Create credentials file with proper format
+          echo "[default]" > ~/.aws/credentials
+          echo "aws_access_key_id=${{ secrets.AWS_ACCESS_KEY_ID }}" >> ~/.aws/credentials
+          echo "aws_secret_access_key=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> ~/.aws/credentials
+          
+          # Create config file with proper format
+          echo "[default]" > ~/.aws/config
+          echo "region=${{ secrets.AWS_DEFAULT_REGION || 'us-east-1' }}" >> ~/.aws/config
+          
+          # Verify the format of the files
+          cat ~/.aws/config
+          echo "AWS credentials file created (not showing contents for security)"
       
       - name: Update dynamic parameters
         run: |
