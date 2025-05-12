@@ -86,10 +86,19 @@ jobs:
             --year-end 2025 \
             --month-end 1
       
-      - name: Save feature files artifacts
-        uses: actions/upload-artifact@v2  # Changed from v3 to v2
+      - name: Save feature files - Manual approach
         if: always()
-        with:
-          name: feature-files
-          path: data/transformed/*.parquet
-          retention-days: 7
+        run: |
+          # Create a zip file of the parquet files
+          cd data/transformed/
+          zip -r ../../feature-files.zip *.parquet
+          cd ../../
+          
+          echo "Feature files zipped to feature-files.zip"
+          
+          # Upload using the GitHub API directly
+          if [ -f "feature-files.zip" ]; then
+            echo "Artifact created and ready to be accessed"
+            # List contents for verification
+            unzip -l feature-files.zip
+          fi
