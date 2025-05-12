@@ -52,5 +52,10 @@ This project builds a full-stack MLOps pipeline to forecast hourly demand for Ci
 - Access forecasts and station trends in real time.
 - Export forecasts to CSV.
 - Detect daily/weekly patterns interactively.
+  
+  ![image](https://github.com/user-attachments/assets/02173ea4-68ec-4dfc-943a-019587e2e38b)
+  ![image](https://github.com/user-attachments/assets/191c6609-b201-4fbe-9390-1f176b0ded5d)
+
+
 
 ---
