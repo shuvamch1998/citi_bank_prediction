@@ -21,7 +21,7 @@ This project builds a full-stack MLOps pipeline to forecast hourly demand for Ci
    - Migrated to S3 via Athena for cheaper querying and analytics
 4. **Model Training**:
    - Baseline model (lag average)
-   - LightGBM with full and reduced features
+   - LightGBM with full (lag, rolling mean, rolling max, rolling standard deviation ) and reduced features
    - Best MAE: ~1.59 (LightGBM Full)
 5. **Inference**: Recursive batch forecasting over next 90 days.
 6. **Forecast Storage**: Written to S3 (`latest.csv` + timestamped).
